@@ -75,8 +75,8 @@ class Meteor(pygame.sprite.Sprite):
         self.rect = self.image.get_frect(center=position)
         self.start_time = pygame.time.get_ticks()
         self.lifetime = 3000
-        self.direction = pygame.Vector2(uniform(-0.5, 0.5), 1)
-        self.speed = randint(300, 400)
+        self.direction = pygame.Vector2(uniform(-0.7, 0.5), 1)
+        self.speed = randint(200, 300)
         self.rotation_speed = randint(40, 80)
         self.rotation = 0
 
@@ -112,10 +112,11 @@ def collisions():
     global Running
     collision_sprites = pygame.sprite.spritecollide(player, meteor_sprites, True, pygame.sprite.collide_mask)
     if collision_sprites:
-        print("Boom")
+        # Running = False
+        print("Game Over")
         damage_aud.play()
         damage_aud.set_volume(0.4)
-        # Running = False
+
     for laser in laser_sprites:
         collided_sprites = pygame.sprite.spritecollide(laser, meteor_sprites, True)
         if collided_sprites:
@@ -146,7 +147,7 @@ star_surf = pygame.image.load((join("images", "star.png"))).convert_alpha()
 meteor_surf = pygame.image.load((join("images", "meteor.png"))).convert_alpha()
 laser_surf = pygame.image.load((join("images", "laser.png"))).convert_alpha()
 font = pygame.font.Font(join("images", "Oxanium-Bold.ttf"), 40)
-text_surface = font.render("Game almost Ready", True, (240, 240, 220))
+text_surface = font.render("Meteor Shooter", True, (240, 240, 220))
 explosion_frames = [pygame.image.load(join("images", "explosion", f"{i}.png")).convert_alpha() for i in range(21)]
 laser_aud = pygame.mixer.Sound(join("audio", "laser.wav"))
 explosion_aud = pygame.mixer.Sound(join("audio", "explosion.wav"))
