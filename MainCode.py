@@ -7,6 +7,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, groups):
         super().__init__(groups)
         self.image = pygame.image.load((join("images", "player.png"))).convert_alpha()
+        self.image = pygame.transform.scale(self.image, (100, 100))
         self.rect = self.image.get_frect(center=(Window_Width / 2, Window_Height / 2))
         self.direction = pygame.Vector2()
         self.speed = 300
@@ -21,6 +22,8 @@ class Player(pygame.sprite.Sprite):
         # mask_surface = mask.to_surface()
         # mask_surface.set_colorkey((0,0,0))
         # self.image = mask_surface
+        # lives
+        self.lives = 5
 
     def laser_timer(self):
         if not self.can_shoot:
@@ -110,10 +113,14 @@ class AnimatedExplosion(pygame.sprite.Sprite):
 
 def collisions():
     global Running
+    global game_over
     collision_sprites = pygame.sprite.spritecollide(player, meteor_sprites, True, pygame.sprite.collide_mask)
     if collision_sprites:
-        # Running = False
-        print("Game Over")
+        player.lives -= 1
+        DisplayMessage(f" Taking Damage!!! \n Lives left: {player.lives}", player.rect.center, 1500, all_sprites)
+        if player.lives == 0:
+            game_over = True
+            Running = False
         damage_aud.play()
         damage_aud.set_volume(0.4)
 
@@ -126,12 +133,133 @@ def collisions():
             explosion_aud.set_volume(0.2)
 
 
+def lives_display():
+    lives_surface = font.render(f"Lives: {player.lives}", True, (240, 240, 220))
+    lives_rect = lives_surface.get_frect(topleft=(10, 60))  # Position below the score
+    display_surface.blit(lives_surface, lives_rect)
+
+
+def show_menu():
+    menu_background = pygame.image.load(join("images", "backgroundmenu.png")).convert_alpha()
+    menu_background = pygame.transform.scale(menu_background, (Window_Width, Window_Height))
+    menu_font = pygame.font.Font(join("images", "Oxanium-Bold.ttf"), 60)
+    # menu_font2 = pygame.font.Font(join("images")," ")
+    title_surface = menu_font.render("METEOR SHOOTER", True, (0, 0, 10))
+
+    start_surface = menu_font.render("START", True, (240, 240, 220))
+    quit_surface = menu_font.render("QUIT", True, (240, 240, 220))
+
+    title_rect = title_surface.get_rect(left = 50,top = 100)
+    start_rect = start_surface.get_rect(left=100, top=Window_Height / 3)
+    quit_rect = quit_surface.get_rect(left=100, top=Window_Height / 2.3)
+
+    def display_message(message, duration):
+        font = pygame.font.Font(join("images", "Oxanium-Bold.ttf"), 30)
+        message_surface = font.render(message, True, (255, 0, 0))  # Red color
+        message_rect = message_surface.get_rect(center=(Window_Width / 2, Window_Height / 2))
+
+        start_time = pygame.time.get_ticks()
+        while pygame.time.get_ticks() - start_time < duration:
+            display_surface.fill((0, 0, 0), (0, 0, Window_Width, Window_Height))  # Clear screen
+            display_surface.blit(message_surface, message_rect)
+            pygame.display.update()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+
+    while True:
+        display_surface.blit(menu_background, (0, 0))
+        # display_surface.fill((0, 0, 200))  # Black background for the menu
+        display_surface.blit(title_surface, title_rect)
+
+        # Get the current mouse position
+        mouse_pos = pygame.mouse.get_pos()
+        mouse_click = pygame.mouse.get_pressed()
+
+        # Highlight "Start" if the mouse is hovering over it
+        if start_rect.collidepoint(mouse_pos):
+            start_surface = menu_font.render("Start", True, (255, 255, 0))  # Highlighted color
+            if mouse_click[0]:
+                game_start_time = pygame.time.get_ticks()  # Left mouse button is clicked
+                return  # Exits the menu and starts the game
+        else:
+            start_surface = menu_font.render("Start", True, (34, 214, 64))
+
+        # Highlight "Quit" if the mouse is hovering over it
+        if quit_rect.collidepoint(mouse_pos):
+            quit_surface = menu_font.render("Quit", True, (255, 255, 0))  # Highlighted color
+            if mouse_click[0]:  # Left mouse button is clicked
+                pygame.quit()
+                quit()  # Exits the game
+        else:
+            quit_surface = menu_font.render("Quit", True, (240, 0, 0))
+
+        # Draw the updated buttons
+        display_surface.blit(start_surface, start_rect)
+        display_surface.blit(quit_surface, quit_rect)
+
+        # Check for QUIT event
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+        pygame.display.update()
+
+
+game_start_time = 0
+
+
 def score_display():
-    current_time = pygame.time.get_ticks() // 100
+    current_time = (pygame.time.get_ticks() - game_start_time) // 100
     text_surface = font.render(str(current_time), True, (240, 240, 220))
     text_rect = text_surface.get_frect(midbottom=(Window_Width / 2, Window_Height - 50))
     display_surface.blit(text_surface, text_rect)
     pygame.draw.rect(display_surface, (240, 240, 220), text_rect.inflate(20, 10).move(0, -8), 5, 15)
+
+
+class DisplayMessage(pygame.sprite.Sprite):
+    def __init__(self, text, position, duration, groups):
+        super().__init__(groups)
+        self.font = pygame.font.Font(join("images", "Oxanium-Bold.ttf"), 30)
+        self.image = self.font.render(text, True, (255, 0, 0))
+        self.rect = self.image.get_frect(center=position)
+        self.duration = duration
+        self.start_time = pygame.time.get_ticks()
+        self.y_speed = -100  # Speed at which text moves up
+
+    def update(self, dt):
+        # Move text up
+        self.rect.centery += self.y_speed * dt
+
+        # Check if duration has passed
+        if pygame.time.get_ticks() - self.start_time > self.duration:
+            self.kill()
+
+
+def game_over_screen():
+    global Running
+    display_surface.fill((0, 0, 0))  # Black background for game over screen
+
+    # Display the "Nice Try!" message
+    font = pygame.font.Font(join("images", "Oxanium-Bold.ttf"), 60)
+    message_surface = font.render("Nice Try!", True, (255, 0, 0))  # Red color
+    message_rect = message_surface.get_rect(center=(Window_Width / 2, Window_Height / 3))
+    display_surface.blit(message_surface, message_rect)
+
+    # Display the score
+    # score = current_time
+    # score_surface = font.render(f"Score: {score}", True, (240, 240, 220))
+    # score_rect = score_surface.get_rect(center=(Window_Width / 2, Window_Height / 2))
+    # display_surface.blit(score_surface, score_rect)
+
+    pygame.display.update()
+    pygame.time.wait(2000)  # Show the message for 2 seconds
+
+    # Return to the main menu
+    show_menu()
+    game_over = False
 
 
 # general setup
@@ -169,11 +297,19 @@ player = Player(all_sprites)
 meteor_event = pygame.event.custom_type()
 pygame.time.set_timer(meteor_event, 400)
 
+show_menu()
+game_over = False
+
 while Running:
 
     # event_loop
     dt = clock.tick() / 1000
     # print(clock.get_fps())
+
+
+    if game_over:
+        game_over_screen()
+        continue
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -190,6 +326,7 @@ while Running:
     display_surface.blit(text_surface, (5, 5))
     all_sprites.draw(display_surface)
     score_display()
+    lives_display()
 
     # draw test
 
